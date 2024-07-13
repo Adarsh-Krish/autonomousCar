@@ -246,3 +246,65 @@ class RandomCar extends Car {
 }
 
 
+class RuleBasedCar extends Car {
+    constructor(x, y, width, height, controlType, angle = 0, maxSpeed = 3, color = "red") {
+        super(x, y, width, height, controlType, angle, maxSpeed, color);
+        this.sensor = new Sensor(this);
+    }
+
+    update(roadBorders, traffic) {
+        if (!this.damaged) {
+            this.#ruleBasedMove(roadBorders, traffic);
+            this.fitness += this.speed;
+            this.polygon = this.createPolygon();
+            this.damaged = this.assessDamage(roadBorders, traffic);
+        }
+        this.sensor.update(roadBorders, traffic);
+    }
+
+    #ruleBasedMove(roadBorders, traffic) {
+        const readings = this.sensor.readings;
+        const frontSensor = readings[2]; // Assuming the middle sensor is front
+        const leftSensor = readings[1];
+        const rightSensor = readings[3];
+
+        this.controls.forward = true;
+        this.controls.left = false;
+        this.controls.right = false;
+        this.controls.reverse = false;
+
+        const safeDistance = 0.6; // Adjust this value as needed
+
+        if (frontSensor && frontSensor.offset < safeDistance) {
+            // Obstacle detected ahead, turn to the side with more space
+            if (leftSensor && rightSensor) {
+                if (leftSensor.offset > rightSensor.offset) {
+                    this.controls.left = true;
+                } else {
+                    this.controls.right = true;
+                }
+            } else if (leftSensor) {
+                this.controls.left = true;
+            } else if (rightSensor) {
+                this.controls.right = true;
+            } else {
+                // If no side sensors, reverse
+                this.controls.forward = false;
+                this.controls.reverse = true;
+            }
+        } else if (leftSensor && leftSensor.offset < safeDistance / 2) {
+            // Too close to left, turn right
+            this.controls.right = true;
+        } else if (rightSensor && rightSensor.offset < safeDistance / 2) {
+            // Too close to right, turn left
+            this.controls.left = true;
+        }
+
+        // Adjust speed based on controls
+        this.move();
+    }
+
+    draw(ctx) {
+        super.draw(ctx, true); // Always draw sensor
+    }
+}

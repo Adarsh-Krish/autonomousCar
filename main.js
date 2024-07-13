@@ -80,7 +80,8 @@ function generateCars(N) {
         if (i % 2 === 0) {
             cars.push(new Car(startPoint.x, startPoint.y, 30, 50, "AI", startAngle));
         } else {
-            cars.push(new RandomCar(startPoint.x, startPoint.y, 30, 50, "DUMMY", startAngle));
+            cars.push(new RuleBasedCar(startPoint.x, startPoint.y, 30, 50, "DUMMY", startAngle));
+            // cars.push(new RandomCar(startPoint.x, startPoint.y, 30, 50, "DUMMY", startAngle));
         }
     }
     return cars;
