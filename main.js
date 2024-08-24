@@ -12,6 +12,8 @@ networkCanvas.height = window.innerHeight - 300;
 const carCtx = carCanvas.getContext("2d");
 const networkCtx = networkCanvas.getContext("2d");
 
+let crashedCarsCount = 0;
+
 /*
 const worldString = localStorage.getItem("world");
 const worldInfo = worldString ? JSON.parse(worldString) : null;
@@ -148,9 +150,9 @@ function animate(time) {
     for (let i = 0; i < traffic.length; i++) {
         traffic[i].draw(carCtx);
     }
+    console.log(`Number of crashed cars: ${crashedCarsCount}`);
 
     networkCtx.lineDashOffset = -time / 50;
     networkCtx.clearRect(0, 0, networkCanvas.width, networkCanvas.height);
-    // Visualizer.drawNetwork(networkCtx, bestCar.brain);
     requestAnimationFrame(animate);
 }

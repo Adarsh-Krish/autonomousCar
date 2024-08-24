@@ -12,6 +12,7 @@ class Car {
         this.angle = angle;
         this.damaged = false;
 
+
         this.fittness = 0;
 
         this.useBrain = controlType == "AI";
@@ -47,7 +48,13 @@ class Car {
             this.move();
             this.fittness += this.speed;
             this.polygon = this.createPolygon();
+            const wasDamaged = this.damaged;
             this.damaged = this.assessDamage(roadBorders, traffic);
+
+            // Increment the crash counter only if the car gets damaged in this frame
+            if (!wasDamaged && this.damaged) {
+                crashedCarsCount++;
+            }
         }
         if (this.sensor) {
             this.sensor.update(roadBorders, traffic);
@@ -64,6 +71,7 @@ class Car {
             }
         }
     }
+
 
     assessDamage(roadBorders, traffic) {
         for (let i = 0; i < roadBorders.length; i++) {
@@ -264,40 +272,61 @@ class RuleBasedCar extends Car {
 
     #ruleBasedMove(roadBorders, traffic) {
         const readings = this.sensor.readings;
-        const frontSensor = readings[2]; // Assuming the middle sensor is front
-        const leftSensor = readings[1];
-        const rightSensor = readings[3];
+        const frontSensor = readings[2]; // Middle sensor
+        const leftFrontSensor = readings[1];
+        const rightFrontSensor = readings[3];
+        const leftSensor = readings[0];
+        const rightSensor = readings[4];
 
         this.controls.forward = true;
         this.controls.left = false;
         this.controls.right = false;
         this.controls.reverse = false;
 
-        const safeDistance = 0.6; // Adjust this value as needed
+        const safeDistance = 0.6; // General safe distance to maintain
+        const sharpTurnThreshold = 0.3; // Distance threshold to initiate a sharp turn
+        const turnSpeedReductionFactor = 0.4; // Reduce speed significantly during sharp turns
+        const slowTurnFactor = 0.7; // Moderate speed reduction for normal turns
 
+        // Obstacle detected ahead
         if (frontSensor && frontSensor.offset < safeDistance) {
-            // Obstacle detected ahead, turn to the side with more space
-            if (leftSensor && rightSensor) {
-                if (leftSensor.offset > rightSensor.offset) {
-                    this.controls.left = true;
-                } else {
-                    this.controls.right = true;
-                }
-            } else if (leftSensor) {
-                this.controls.left = true;
-            } else if (rightSensor) {
+            // Handle sharp turns by checking side sensors
+            if (leftFrontSensor && leftFrontSensor.offset < sharpTurnThreshold) {
+                // Sharp left turn ahead, steer right
                 this.controls.right = true;
+                this.speed *= turnSpeedReductionFactor;
+            } else if (rightFrontSensor && rightFrontSensor.offset < sharpTurnThreshold) {
+                // Sharp right turn ahead, steer left
+                this.controls.left = true;
+                this.speed *= turnSpeedReductionFactor;
             } else {
-                // If no side sensors, reverse
-                this.controls.forward = false;
-                this.controls.reverse = true;
+                // General obstacle ahead, choose the side with more space
+                if (leftSensor && rightSensor) {
+                    if (leftSensor.offset > rightSensor.offset) {
+                        this.controls.left = true;
+                    } else {
+                        this.controls.right = true;
+                    }
+                } else if (leftSensor) {
+                    this.controls.left = true;
+                } else if (rightSensor) {
+                    this.controls.right = true;
+                } else {
+                    // No space, reverse
+                    this.controls.forward = false;
+                    this.controls.reverse = true;
+                }
+                // Reduce speed for normal turns
+                this.speed *= slowTurnFactor;
             }
-        } else if (leftSensor && leftSensor.offset < safeDistance / 2) {
-            // Too close to left, turn right
+        } else if (leftSensor && leftSensor.offset < sharpTurnThreshold) {
+            // Too close to the left side, steer right
             this.controls.right = true;
-        } else if (rightSensor && rightSensor.offset < safeDistance / 2) {
-            // Too close to right, turn left
+            this.speed *= turnSpeedReductionFactor;
+        } else if (rightSensor && rightSensor.offset < sharpTurnThreshold) {
+            // Too close to the right side, steer left
             this.controls.left = true;
+            this.speed *= turnSpeedReductionFactor;
         }
 
         // Adjust speed based on controls
